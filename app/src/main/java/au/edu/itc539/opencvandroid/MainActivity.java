@@ -60,6 +60,8 @@ public class MainActivity extends AppCompatActivity implements CvCameraViewListe
 
     TextView portrait_label, landscape_label;
 
+    CustTextView rev_landscape_label;
+
     Mat mRgba;
     Mat mRgbaF;
     Mat mRgbaT;
@@ -158,6 +160,10 @@ public class MainActivity extends AppCompatActivity implements CvCameraViewListe
 
         landscape_label = findViewById(R.id.fruit_target_landscape);
 
+        rev_landscape_label = findViewById(R.id.fruit_target_reverse_landscape);
+
+        //  rev_landscape_label.setRotation(portrait_label.getRotation() - 90);
+
 
         // Get an instance of the SensorManager
         try {
@@ -234,6 +240,8 @@ public class MainActivity extends AppCompatActivity implements CvCameraViewListe
 
             landscape_label.setVisibility(View.VISIBLE);
 
+            rev_landscape_label.setVisibility(View.GONE);
+
 
         } else if (roll >= -180 && roll <= -70) {
 
@@ -241,11 +249,15 @@ public class MainActivity extends AppCompatActivity implements CvCameraViewListe
 
             landscape_label.setVisibility(View.GONE);
 
+            rev_landscape_label.setVisibility(View.VISIBLE);
+
         } else {
 
             portrait_label.setVisibility(View.VISIBLE);
 
             landscape_label.setVisibility(View.GONE);
+
+            rev_landscape_label.setVisibility(View.GONE);
 
         }
 
