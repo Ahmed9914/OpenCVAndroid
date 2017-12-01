@@ -46,10 +46,10 @@ import org.opencv.imgproc.Imgproc;
 
 // OpenCV Classes
 
-public class MainActivity extends AppCompatActivity implements CvCameraViewListener2, SensorEventListener {
+public class CameraActivity extends AppCompatActivity implements CvCameraViewListener2, SensorEventListener {
 
-    // Used for logging success or failure messages
-    private static final String TAG = "OCVSample::Activity";
+
+    private static final String TAG = "CameraActivity";
 
     // Loads camera view of OpenCV for us to use. This lets us see using OpenCV
     private CameraBridgeViewBase mOpenCvCameraView;
@@ -94,7 +94,7 @@ public class MainActivity extends AppCompatActivity implements CvCameraViewListe
         }
     };
 
-    public MainActivity() {
+    public CameraActivity() {
 
         Log.i(TAG, "Instantiated new " + this.getClass());
 
@@ -162,8 +162,6 @@ public class MainActivity extends AppCompatActivity implements CvCameraViewListe
 
         rev_landscape_label = findViewById(R.id.fruit_target_reverse_landscape);
 
-        //  rev_landscape_label.setRotation(portrait_label.getRotation() - 90);
-
 
         // Get an instance of the SensorManager
         try {
@@ -223,17 +221,27 @@ public class MainActivity extends AppCompatActivity implements CvCameraViewListe
 
 
     private void update(float[] vectors) {
+
         float[] rotationMatrix = new float[9];
+
         SensorManager.getRotationMatrixFromVector(rotationMatrix, vectors);
+
         int worldAxisX = SensorManager.AXIS_X;
+
         int worldAxisZ = SensorManager.AXIS_Z;
+
         float[] adjustedRotationMatrix = new float[9];
+
         SensorManager.remapCoordinateSystem(rotationMatrix, worldAxisX, worldAxisZ, adjustedRotationMatrix);
+
         float[] orientation = new float[3];
+
         SensorManager.getOrientation(adjustedRotationMatrix, orientation);
+
         //    float pitch = orientation[1] * FROM_RADS_TO_DEGS;
+
         float roll = orientation[2] * FROM_RADS_TO_DEGS;    // relevant
-// (roll >= -180 && roll <= -70) || (
+
         if ((roll >= 70 && roll <= 180)) {
 
             portrait_label.setVisibility(View.GONE);
@@ -261,9 +269,7 @@ public class MainActivity extends AppCompatActivity implements CvCameraViewListe
 
         }
 
-        //    ((TextView)findViewById(R.id.fruit_target)).setText("Roll: "+roll);
 
-        //  ((TextView) findViewById(R.id.fruit_target) ).setText(getResources().getConfiguration().orientation);
     }
 
     @Override
