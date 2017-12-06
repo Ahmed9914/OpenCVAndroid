@@ -1,8 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
-
-    android:orientation="vertical"
     xmlns:opencv="http://schemas.android.com/apk/res-auto"
+    android:orientation="vertical"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:clipChildren="false">
@@ -28,7 +27,6 @@
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:id="@+id/fruit_target_landscape"
-        android:text="My Label"
         android:layout_gravity="bottom|center"
         android:textSize="40dp" />
 
@@ -36,7 +34,6 @@
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:id="@+id/fruit_target_reverse_landscape"
-        android:text="My Label"
         android:layout_gravity="top|center"
         android:textSize="40dp" />
 

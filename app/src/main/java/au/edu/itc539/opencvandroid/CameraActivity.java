@@ -3,6 +3,8 @@ package au.edu.itc539.opencvandroid;
 import android.Manifest;
 import android.animation.ObjectAnimator;
 import android.app.Activity;
+import android.content.Context;
+import android.content.Intent;
 import android.content.pm.ActivityInfo;
 import android.content.pm.PackageManager;
 import android.content.res.Configuration;
@@ -39,39 +41,66 @@ import org.opencv.android.OpenCVLoader;
 import org.opencv.core.Core;
 import org.opencv.core.CvType;
 import org.opencv.core.Mat;
+import org.opencv.core.MatOfRect;
 import org.opencv.core.Point;
+import org.opencv.core.Rect;
 import org.opencv.core.Scalar;
+import org.opencv.core.Size;
 import org.opencv.imgproc.Imgproc;
+import org.opencv.objdetect.CascadeClassifier;
+
+import java.io.File;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.io.InputStream;
 
 
 // OpenCV Classes
 
 public class CameraActivity extends AppCompatActivity implements CvCameraViewListener2, SensorEventListener {
 
+    private Scalar RED = new Scalar(255, 0, 0);
 
     private static final String TAG = "CameraActivity";
+
+    public static final int NATIVE_DETECTOR = 1;
+
+    public static final int JAVA_DETECTOR = 0;
 
     // Loads camera view of OpenCV for us to use. This lets us see using OpenCV
     private CameraBridgeViewBase mOpenCvCameraView;
 
-    // Used in Camera selection from menu (when implemented)
-    private boolean mIsJavaCamera = true;
-    private MenuItem mItemSwitchCamera = null;
+    private File mCascadeFile;
 
-    TextView portrait_label, landscape_label;
+    private int mDetectorType = JAVA_DETECTOR;
 
-    CustTextView rev_landscape_label;
+    private String[] mDetectorName;
 
-    Mat mRgba;
-    Mat mRgbaF;
-    Mat mRgbaT;
+    // https://msdn.microsoft.com/en-us/library/azure/dn913079.aspx
+    // https://github.com/opencv/opencv/tree/master/data/haarcascades
+    private CascadeClassifier mJavaDetector;
+
+    private Mat mRgba;
+
+    private Mat mGray;
+
+    private float mRelativeFruitSize = 0.2f;
+
+    private int mAbsoluteFruitSize = 0;
+
+    private TextView portrait_label, landscape_label;
+
+    private CustTextView rev_landscape_label;
+
 
     private SensorManager mSensorManager;
+
     private Sensor mRotationSensor;
 
-    Animation animation;
+
 
     private static final int SENSOR_DELAY = 500 * 1000; // 500ms
+
     private static final int FROM_RADS_TO_DEGS = -57;
 
     private BaseLoaderCallback mLoaderCallback = new BaseLoaderCallback(this) {
@@ -82,6 +111,77 @@ public class CameraActivity extends AppCompatActivity implements CvCameraViewLis
                 {
 
                     Log.i(TAG, "OpenCV loaded successfully");
+
+                    //  Intent iin= getIntent();
+
+                    //  Bundle b = iin.getExtras();
+
+                    File cascadeDir = getDir("cascade", Context.MODE_PRIVATE);
+
+                    try {
+
+                        // if(b!=null) {
+
+                        //   String j = (String) b.get("fruit");
+
+                        //  String classifier = j;
+
+                        // load cascade file from application resources
+                        InputStream is = getResources().openRawResource(
+                                getResources().getIdentifier("banana", "raw", getPackageName()));
+
+                        portrait_label.setText("banana");
+
+                        landscape_label.setText("banana");
+
+                        rev_landscape_label.setText("banana");
+
+
+                        mCascadeFile = new File(cascadeDir, "banana");
+
+                        Log.i(TAG, "Classifier: " + "banana" + ".xml");
+
+                        FileOutputStream os = new FileOutputStream(mCascadeFile);
+
+                        byte[] buffer = new byte[4096];
+
+                        int bytesRead;
+
+                        while ((bytesRead = is.read(buffer)) != -1) {
+
+                            os.write(buffer, 0, bytesRead);
+
+                        }
+
+                        is.close();
+
+                        os.close();
+
+                        //}
+
+                        mJavaDetector = new CascadeClassifier(mCascadeFile.getAbsolutePath());
+
+                        if (mJavaDetector.empty()) {
+
+                            Log.e(TAG, "Failed to load cascade classifier");
+
+                            mJavaDetector = null;
+
+                        } else
+
+                            Log.i(TAG, "Loaded cascade classifier from " + mCascadeFile.getAbsolutePath());
+
+                        cascadeDir.delete();
+
+                    } catch (IOException e) {
+
+                        e.printStackTrace();
+
+                        Log.e(TAG, "Failed to load cascade. Exception thrown: " + e);
+
+                    }
+
+                    mOpenCvCameraView.setCameraIndex(0);
 
                     mOpenCvCameraView.enableView();
 
@@ -98,6 +198,9 @@ public class CameraActivity extends AppCompatActivity implements CvCameraViewLis
 
         Log.i(TAG, "Instantiated new " + this.getClass());
 
+        mDetectorName = new String[2];
+
+        mDetectorName[JAVA_DETECTOR] = "Java";
 
     }
 
@@ -114,9 +217,9 @@ public class CameraActivity extends AppCompatActivity implements CvCameraViewLis
         //getWindow().addFlags(WindowManager.LayoutParams.FLAG_FULLSCREEN);
         //Remove title bar
         requestWindowFeature(Window.FEATURE_NO_TITLE);
-
         //Remove notification bar
         getWindow().setFlags(WindowManager.LayoutParams.FLAG_FULLSCREEN, WindowManager.LayoutParams.FLAG_FULLSCREEN);
+
         setContentView(R.layout.show_camera);
 
         // First check android version
@@ -143,8 +246,6 @@ public class CameraActivity extends AppCompatActivity implements CvCameraViewLis
                             new String[]{ Manifest.permission.CAMERA},
                             1);
 
-
-
                 }
             }
         }
@@ -156,6 +257,7 @@ public class CameraActivity extends AppCompatActivity implements CvCameraViewLis
 
         mOpenCvCameraView.setCvCameraViewListener(this);
 
+
         portrait_label = findViewById(R.id.fruit_target_portrait);
 
         landscape_label = findViewById(R.id.fruit_target_landscape);
@@ -163,15 +265,22 @@ public class CameraActivity extends AppCompatActivity implements CvCameraViewLis
         rev_landscape_label = findViewById(R.id.fruit_target_reverse_landscape);
 
 
-        // Get an instance of the SensorManager
-        try {
-            mSensorManager = (SensorManager) getSystemService(Activity.SENSOR_SERVICE);
-            mRotationSensor = mSensorManager.getDefaultSensor(Sensor.TYPE_ROTATION_VECTOR);
-            mSensorManager.registerListener(this, mRotationSensor, SENSOR_DELAY);
-        } catch (Exception e) {
-            Toast.makeText(this, "Hardware compatibility issue", Toast.LENGTH_LONG).show();
-        }
+/**
+ // Get an instance of the SensorManager
+ try {
 
+ mSensorManager = (SensorManager) getSystemService(Activity.SENSOR_SERVICE);
+
+ mRotationSensor = mSensorManager.getDefaultSensor(Sensor.TYPE_ROTATION_VECTOR);
+
+ mSensorManager.registerListener(this, mRotationSensor, SENSOR_DELAY);
+
+ } catch (Exception e) {
+
+ Toast.makeText(this, "Hardware compatibility issue", Toast.LENGTH_LONG).show();
+
+ }
+ **/
     }
 
     @Override
@@ -193,7 +302,7 @@ public class CameraActivity extends AppCompatActivity implements CvCameraViewLis
         super.onResume();
         if (!OpenCVLoader.initDebug()) {
             Log.d(TAG, "Internal OpenCV library not found. Using OpenCV Manager for initialization");
-            OpenCVLoader.initAsync(OpenCVLoader.OPENCV_VERSION_3_0_0, this, mLoaderCallback);
+            OpenCVLoader.initAsync(OpenCVLoader.OPENCV_VERSION, this, mLoaderCallback);
         } else {
             Log.d(TAG, "OpenCV library found inside package. Using it!");
             mLoaderCallback.onManagerConnected(LoaderCallbackInterface.SUCCESS);
@@ -274,7 +383,6 @@ public class CameraActivity extends AppCompatActivity implements CvCameraViewLis
 
     @Override
     public void onAccuracyChanged(Sensor sensor, int accuracy) {
-
     }
 
 
@@ -287,15 +395,47 @@ public class CameraActivity extends AppCompatActivity implements CvCameraViewLis
     public void onCameraViewStarted(int width, int height) {
 
         mRgba = new Mat(height, width, CvType.CV_8UC4);
-        mRgbaF = new Mat(height, width, CvType.CV_8UC4);
-        mRgbaT = new Mat(width, width, CvType.CV_8UC4);
+
+        mGray = new Mat();
+
     }
 
     public void onCameraViewStopped() {
+
         mRgba.release();
+
+        mGray.release();
     }
 
     public Mat onCameraFrame(CvCameraViewFrame inputFrame) {
+
+        mGray = inputFrame.gray();
+
+        //  Imgproc.rectangle(mRgba, new Point(10, 10), new Point(20, 20),new Scalar(0, 255, 0));
+        // Imgproc.putText(mRgba, "====", new Point(10,10), 3, 1, new Scalar(255, 0, 0, 255), 2);
+
+        if (mAbsoluteFruitSize == 0) {
+            int height = mGray.rows();
+            if (Math.round(height * mRelativeFruitSize) > 0) {
+                mAbsoluteFruitSize = Math.round(height * mRelativeFruitSize);
+            }
+
+        }
+
+        MatOfRect fruit = new MatOfRect();
+
+        if (mDetectorType == JAVA_DETECTOR) {
+            if (mJavaDetector != null)
+                mJavaDetector.detectMultiScale(mGray, fruit, 1.1, 2, 2,
+                        new Size(mAbsoluteFruitSize, mAbsoluteFruitSize), new Size());
+        } else {
+            Log.e(TAG, "Detection method is not selected!");
+        }
+
+        Rect[] fruits = fruit.toArray();
+
+        for (int i = 0; i < fruits.length; i++)
+            Imgproc.rectangle(mRgba, fruits[i].tl(), fruits[i].br(), RED, 3);
 
         return inputFrame.rgba();
 
